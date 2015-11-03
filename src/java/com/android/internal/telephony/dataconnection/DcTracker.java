@@ -754,13 +754,13 @@ public final class DcTracker extends DcTrackerBase {
             return true;
         }
 
-        ArrayList<ApnSetting> allApnSettings = this.getAllApnSettings();
-        for (ApnSetting apn : allApnSettings) {
-            if (apn.canHandleType(type)) {
-                return true;
+        if (mAllApnSettings != null) {
+            for (ApnSetting apn : mAllApnSettings) {
+                if (apn.canHandleType(type)) {
+                    return true;
+                }
             }
         }
-
         return false;
     }
 
@@ -996,7 +996,7 @@ public final class DcTracker extends DcTrackerBase {
                     apnContext.setWaitingApns(waitingApns);
                     if (DBG) {
                         log ("trySetupData: Create from mAllApnSettings : "
-                                    + apnListToString(this.getAllApnSettings()));
+                                    + apnListToString(mAllApnSettings));
                     }
                 }
             }
@@ -1800,7 +1800,7 @@ public final class DcTracker extends DcTrackerBase {
         if (DBG) log("onSimNotReady");
 
         cleanUpAllConnections(true, Phone.REASON_SIM_NOT_READY);
-        this.clearAllApnSettings();
+        mAllApnSettings = null;
         mAutoAttachOnCreationConfig = false;
     }
 
@@ -2579,8 +2579,7 @@ public final class DcTracker extends DcTrackerBase {
      * Data Connections and setup the preferredApn.
      */
     private void createAllApnList() {
-        this.clearAllApnSettings();
-        ArrayList<ApnSetting> allApnSettings = this.getAllApnSettings();
+        mAllApnSettings.clear();
         String operator = getOperatorNumeric();
         int radioTech = mPhone.getServiceState().getRilDataRadioTechnology();
 
@@ -2590,11 +2589,11 @@ public final class DcTracker extends DcTrackerBase {
             mOmhApnsList = mOmhApt.getOmhApnProfilesList();
             if (!mOmhApnsList.isEmpty()) {
                 if (DBG) log("createAllApnList: Copy Omh profiles");
-                allApnSettings.addAll(mOmhApnsList);
+                mAllApnSettings.addAll(mOmhApnsList);
             }
         }
 
-        if (allApnSettings.isEmpty()) {
+        if (mAllApnSettings.isEmpty()) {
             if (operator != null && !operator.isEmpty()) {
                 String selection = "numeric = '" + operator + "'";
                 // query only enabled apn.
@@ -2607,7 +2606,7 @@ public final class DcTracker extends DcTrackerBase {
 
                 if (cursor != null) {
                     if (cursor.getCount() > 0) {
-                        this.setAllApnSettings(createApnList(cursor, mIccRecords.get()));
+                        mAllApnSettings = createApnList(cursor, mIccRecords.get());
                     }
                     cursor.close();
                 }
@@ -2616,13 +2615,13 @@ public final class DcTracker extends DcTrackerBase {
 
         dedupeApnSettings();
 
-        if (this.getAllApnSettings().isEmpty() && isDummyProfileNeeded()) {
+        if (mAllApnSettings.isEmpty() && isDummyProfileNeeded()) {
             addDummyApnSettings(operator);
         }
 
         addEmergencyApnSetting();
 
-        if (this.getAllApnSettings().isEmpty()) {
+        if (mAllApnSettings.isEmpty()) {
             if (DBG) log("createAllApnList: No APN found for carrier: " + operator);
             mPreferredApn = null;
             // TODO: What is the right behavior?
@@ -2635,7 +2634,7 @@ public final class DcTracker extends DcTrackerBase {
             }
             if (DBG) log("createAllApnList: mPreferredApn=" + mPreferredApn);
         }
-        if (DBG) log("createAllApnList: X mAllApnSettings=" + this.getAllApnSettings());
+        if (DBG) log("createAllApnList: X mAllApnSettings=" + mAllApnSettings);
 
         setDataProfilesAsNeeded();
     }
@@ -2670,18 +2669,17 @@ public final class DcTracker extends DcTrackerBase {
         // coalesce APNs if they are similar enough to prevent
         // us from bringing up two data calls with the same interface
         int i = 0;
-        ArrayList<ApnSetting> allApnSettings = this.getAllApnSettings();
-        while (i < allApnSettings.size() - 1) {
-            ApnSetting first = allApnSettings.get(i);
+        while (i < mAllApnSettings.size() - 1) {
+            ApnSetting first = mAllApnSettings.get(i);
             ApnSetting second = null;
             int j = i + 1;
-            while (j < allApnSettings.size()) {
-                second = allApnSettings.get(j);
+            while (j < mAllApnSettings.size()) {
+                second = mAllApnSettings.get(j);
                 if (apnsSimilar(first, second)) {
                     ApnSetting newApn = mergeApns(first, second);
-                    allApnSettings.set(i, newApn);
+                    mAllApnSettings.set(i, newApn);
                     first = newApn;
-                    allApnSettings.remove(j);
+                    mAllApnSettings.remove(j);
                 } else {
                     j++;
                 }
@@ -2797,19 +2795,18 @@ public final class DcTracker extends DcTrackerBase {
         String[] dunApnTypes = {
                 PhoneConstants.APN_TYPE_DUN};
 
-        ArrayList<ApnSetting> allApnSettings = this.getAllApnSettings();
         ApnSetting apn = new ApnSetting(DctConstants.APN_DEFAULT_ID, operator, null, null,
                 null, null, null, null, null, null, null,
                 RILConstants.SETUP_DATA_AUTH_PAP_CHAP, defaultApnTypes,
                 PROPERTY_CDMA_IPPROTOCOL, PROPERTY_CDMA_ROAMING_IPPROTOCOL, true, 0,
                 0, false, 0, 0, 0, PhoneConstants.UNSET_MTU, "", "");
-        allApnSettings.add(apn);
+        mAllApnSettings.add(apn);
         apn = new ApnSetting(DctConstants.APN_DUN_ID, operator, null, null,
                 null, null, null, null, null, null, null,
                 RILConstants.SETUP_DATA_AUTH_PAP_CHAP, dunApnTypes,
                 PROPERTY_CDMA_IPPROTOCOL, PROPERTY_CDMA_ROAMING_IPPROTOCOL, true, 0,
                 0, false, 0, 0, 0, PhoneConstants.UNSET_MTU, "", "");
-        allApnSettings.add(apn);
+        mAllApnSettings.add(apn);
     }
 
     /** Return the DC AsyncChannel for the new data connection */
@@ -2904,11 +2901,9 @@ public final class DcTracker extends DcTrackerBase {
                 mPreferredApn = null;
             }
         }
-        
-        ArrayList<ApnSetting> allApnSettings = this.getAllApnSettings();
-        if (!allApnSettings.isEmpty()) {
-            if (DBG) log("buildWaitingApns: mAllApnSettings=" + allApnSettings);
-            for (ApnSetting apn : allApnSettings) {
+        if (mAllApnSettings != null && !mAllApnSettings.isEmpty()) {
+            if (DBG) log("buildWaitingApns: mAllApnSettings=" + mAllApnSettings);
+            for (ApnSetting apn : mAllApnSettings) {
                 if (DBG) log("buildWaitingApns: apn=" + apn);
                 if (apn.canHandleType(requestedApnType)) {
                     if (apn.bearer == 0 || apn.bearer == radioTech) {
@@ -2971,8 +2966,7 @@ public final class DcTracker extends DcTrackerBase {
     }
 
     private ApnSetting getPreferredApn() {
-        ArrayList<ApnSetting> allApnSettings = this.getAllApnSettings();
-        if (allApnSettings.isEmpty()) {
+        if (mAllApnSettings.isEmpty()) {
             log("getPreferredApn: X not found mAllApnSettings.isEmpty");
             return null;
         }
@@ -2995,7 +2989,7 @@ public final class DcTracker extends DcTrackerBase {
             int pos;
             cursor.moveToFirst();
             pos = cursor.getInt(cursor.getColumnIndexOrThrow(Telephony.Carriers._ID));
-            for(ApnSetting p : allApnSettings) {
+            for(ApnSetting p : mAllApnSettings) {
                 log("getPreferredApn: apnSetting=" + p);
                 if (p.id == pos && p.canHandleType(mRequestedApnType)) {
                     log("getPreferredApn: X found apnSetting" + p);
@@ -3503,9 +3497,11 @@ public final class DcTracker extends DcTrackerBase {
      */
     private void addEmergencyApnSetting() {
         if(mEmergencyApn != null) {
-            ArrayList<ApnSetting> allApnSettings = this.getAllApnSettings();
+            if(mAllApnSettings == null) {
+                mAllApnSettings = new ArrayList<ApnSetting>();
+            } else {
                 boolean hasEmergencyApn = false;
-                for (ApnSetting apn : allApnSettings) {
+                for (ApnSetting apn : mAllApnSettings) {
                     if (ArrayUtils.contains(apn.types, PhoneConstants.APN_TYPE_EMERGENCY)) {
                         hasEmergencyApn = true;
                         break;
@@ -3513,10 +3509,11 @@ public final class DcTracker extends DcTrackerBase {
                 }
 
                 if(hasEmergencyApn == false) {
-                    allApnSettings.add(mEmergencyApn);
+                    mAllApnSettings.add(mEmergencyApn);
                 } else {
                     log("addEmergencyApnSetting - E-APN setting is already present");
                 }
+            }
         }
     }
 }

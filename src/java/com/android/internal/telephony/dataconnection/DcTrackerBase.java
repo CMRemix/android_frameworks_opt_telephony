@@ -120,9 +120,6 @@ public abstract class DcTrackerBase extends Handler {
 
     private int mEnabledCount = 0;
 
-    /** allApns holds all apns */
-    private ArrayList<ApnSetting> mAllApnSettings = null;
-
     /* Currently requested APN type (TODO: This should probably be a parameter not a member) */
     protected String mRequestedApnType = PhoneConstants.APN_TYPE_DEFAULT;
 
@@ -278,6 +275,9 @@ public abstract class DcTrackerBase extends Handler {
 
     /* Currently active APN */
     protected ApnSetting mActiveApn;
+
+    /** allApns holds all apns */
+    protected ArrayList<ApnSetting> mAllApnSettings = new ArrayList<ApnSetting>();
 
     /** preferred apn */
     protected ApnSetting mPreferredApn = null;
@@ -1862,35 +1862,15 @@ public abstract class DcTrackerBase extends Handler {
         }
     }
 
-    protected ArrayList<ApnSetting> getAllApnSettings() {
-        synchronized(this) {
-            if (mAllApnSettings == null) {
-                mAllApnSettings = new ArrayList<ApnSetting>();
-            }
-        }
-        return mAllApnSettings;
-    }
-
-    protected void setAllApnSettings(ArrayList<ApnSetting> allApnSettings) {
-        synchronized(this) {
-            mAllApnSettings = allApnSettings;
-        }
-    }
-
-    protected void clearAllApnSettings() {
-        setAllApnSettings(null);
-    }
-
     protected void setInitialAttachApn() {
-        setInitialAttachApn(getAllApnSettings(), mIccRecords.get());
+        setInitialAttachApn(mAllApnSettings, mIccRecords.get());
     }
 
     protected void setDataProfilesAsNeeded() {
         if (DBG) log("setDataProfilesAsNeeded");
-        ArrayList<ApnSetting> allApnSettings = this.getAllApnSettings();
-        if (!allApnSettings.isEmpty()) {
+        if (mAllApnSettings != null && !mAllApnSettings.isEmpty()) {
             ArrayList<DataProfile> dps = new ArrayList<DataProfile>();
-            for (ApnSetting apn : allApnSettings) {
+            for (ApnSetting apn : mAllApnSettings) {
                 if (apn.modemCognitive) {
                     DataProfile dp = new DataProfile(apn,
                             mPhone.getServiceState().getDataRoaming());
@@ -2054,7 +2034,7 @@ public abstract class DcTrackerBase extends Handler {
         }
         pw.flush();
         pw.println(" mActiveApn=" + mActiveApn);
-        ArrayList<ApnSetting> apnSettings = getAllApnSettings();
+        ArrayList<ApnSetting> apnSettings = mAllApnSettings;
         if (apnSettings != null) {
             pw.println(" mAllApnSettings size=" + apnSettings.size());
             for (int i=0; i < apnSettings.size(); i++) {
