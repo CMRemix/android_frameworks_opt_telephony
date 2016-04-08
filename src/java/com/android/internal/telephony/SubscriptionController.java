@@ -785,7 +785,7 @@ public class SubscriptionController extends ISub.Stub {
                                     .getPhoneCount()) {
                                 Rlog.i(LOG_TAG, "Subscription is invalid. Set default to " + subId);
                                 setDefaultSmsSubId(subId);
-                                PhoneFactory.setSMSPromptEnabled(true);
+                                PhoneFactory.setSMSPromptEnabled(subIdCountMax > 1);
                             }
 
                         } else {
@@ -835,6 +835,10 @@ public class SubscriptionController extends ISub.Stub {
             updateAllDataConnectionTrackers();
 
             if (DBG) logdl("[addSubInfoRecord]- info size=" + sSlotIdxToSubId.size());
+
+            if (sSlotIdxToSubId.size() <= 1) {
+                PhoneFactory.setSMSPromptEnabled(false);
+            }
 
         } finally {
             Binder.restoreCallingIdentity(identity);
@@ -1439,6 +1443,7 @@ public class SubscriptionController extends ISub.Stub {
             // Only re-map modems if the new default data sub is valid
             RadioAccessFamily[] rafs = new RadioAccessFamily[len];
             boolean atLeastOneMatch = false;
+            int slotId = PhoneConstants.DEFAULT_CARD_INDEX;
             for (int phoneId = 0; phoneId < len; phoneId++) {
                 PhoneProxy phone = sProxyPhones[phoneId];
                 int raf;
@@ -1447,6 +1452,7 @@ public class SubscriptionController extends ISub.Stub {
                     // TODO Handle the general case of N modems and M subscriptions.
                     raf = proxyController.getMaxRafSupported();
                     atLeastOneMatch = true;
+                    slotId = phoneId;
                 } else {
                     // TODO Handle the general case of N modems and M subscriptions.
                     raf = proxyController.getMinRafSupported();
@@ -1456,6 +1462,9 @@ public class SubscriptionController extends ISub.Stub {
             }
             if (atLeastOneMatch) {
                 proxyController.setRadioCapability(rafs);
+                if (!SystemProperties.getBoolean("ro.ril.multi_rat_capable", true)) {
+                     updateDataSubNetworkType(slotId, subId);
+                }
             } else {
                 if (DBG) logdl("[setDefaultDataSubId] no valid subId's found - not updating.");
             }
@@ -1467,6 +1476,13 @@ public class SubscriptionController extends ISub.Stub {
         Settings.Global.putInt(mContext.getContentResolver(),
                 Settings.Global.MULTI_SIM_DATA_CALL_SUBSCRIPTION, subId);
         broadcastDefaultDataSubIdChanged(subId);
+    }
+
+    private void updateDataSubNetworkType(int slotId, int subId) {
+        SubscriptionInfoUpdater subscriptionInfoUpdater = PhoneFactory.getSubscriptionInfoUpdater();
+        if (subscriptionInfoUpdater != null) {
+            subscriptionInfoUpdater.setDefaultDataSubNetworkType(slotId, subId);
+        }
     }
 
     private void updateAllDataConnectionTrackers() {
