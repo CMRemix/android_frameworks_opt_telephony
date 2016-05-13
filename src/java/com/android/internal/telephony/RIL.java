@@ -2832,8 +2832,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
             case RIL_REQUEST_STOP_LCE: ret = responseLceStatus(p); break;
             case RIL_REQUEST_PULL_LCEDATA: ret = responseLceData(p); break;
             case RIL_REQUEST_GET_ACTIVITY_INFO: ret = responseActivityData(p); break;
-            case RIL_REQUEST_SET_MAX_TRANSMIT_POWER: ret = responseVoid(p); break;
-
             default:
                 throw new RuntimeException("Unrecognized solicited response: " + rr.mRequest);
             //break;
@@ -4457,7 +4455,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
             case RIL_REQUEST_STOP_LCE: return "RIL_REQUEST_STOP_LCE";
             case RIL_REQUEST_PULL_LCEDATA: return "RIL_REQUEST_PULL_LCEDATA";
             case RIL_REQUEST_GET_ACTIVITY_INFO: return "RIL_REQUEST_GET_ACTIVITY_INFO";
-            case RIL_REQUEST_SET_MAX_TRANSMIT_POWER: return "RIL_REQUEST_SET_MAX_TRANSMIT_POWER";
             default: return "<unknown request>";
         }
     }
@@ -5153,18 +5150,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
         if (RILJ_LOGD) {
             riljLog(rr.serialString() + "> " + requestToString(rr.mRequest));
         }
-        send(rr);
-    }
-
-    @Override
-    public void setMaxTransmitPower(int state, Message response) {
-        RILRequest rr = RILRequest.obtain(RIL_REQUEST_SET_MAX_TRANSMIT_POWER, response);
-
-        if (RILJ_LOGD) {
-            riljLog(rr.serialString() + "> " + requestToString(rr.mRequest) + " state = " + state);
-        }
-
-        rr.mParcel.writeInt(state);
         send(rr);
     }
 }

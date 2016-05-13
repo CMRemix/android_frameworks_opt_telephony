@@ -1793,10 +1793,5 @@ public final class SimulatedCommands extends BaseCommands
         unimplemented(result);
     }
 
-    @Override
-    public void setMaxTransmitPower(int state, Message response) {
-        unimplemented(response);
-    }
-
     public boolean needsOldRilFeature(String feature) { return false; }
 }
