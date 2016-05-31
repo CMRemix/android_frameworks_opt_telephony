@@ -2804,11 +2804,6 @@ public abstract class PhoneBase extends Handler implements Phone {
         mCi.getModemActivityInfo(response);
     }
 
-    @Override
-    public void setMaxTransmitPower(int state, Message response) {
-        mCi.setMaxTransmitPower(state, response);
-    }
-
     /**
      * Starts LCE service after radio becomes available.
      * LCE service state may get destroyed on the modem when radio becomes unavailable.
